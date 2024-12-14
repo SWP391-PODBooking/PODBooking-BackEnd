@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -37,7 +37,6 @@
 
   <ItemGroup>
     <Folder Include="src\Domains\DTOs\AmenityService\" />
-    <Folder Include="src\Domains\DTOs\Transaction\" />
   </ItemGroup>
 
 </Project>

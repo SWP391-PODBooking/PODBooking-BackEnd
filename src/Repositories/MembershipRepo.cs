@@ -54,5 +54,11 @@ namespace BE.src.Repositories
             _context.Memberships.Remove(membership);
             return await _context.SaveChangesAsync() > 0;
         }
+
+        //public async Task<List<MembershipUser>> GetUserMembership(Guid userId, Guid membershipId)
+        //{
+        //    var membership = await _context.MembershipUsers.FindAsync(membershipId);
+        //    return await _context.SaveChangesAsync() > 0;
+        //}
     }
 }

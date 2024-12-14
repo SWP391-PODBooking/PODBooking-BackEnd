@@ -1,4 +1,4 @@
-using BE.src.Domains.Enum;
+﻿using BE.src.Domains.Enum;
 using BE.src.Domains.Models;
 using BE.src.Domains.Models.Base;
 using Microsoft.EntityFrameworkCore;
@@ -37,12 +37,13 @@ namespace BE.src.Domains.Database
 
             private readonly IConfiguration _configuration;
 
+
             public PodDbContext(DbContextOptions<PodDbContext> options, IConfiguration configuration)
                 : base(options)
             {
                   _configuration = configuration;
             }
-
+            // code first : config dbcontextuilder de crud database ko co OnModelCreating (hen xui ?) 
             protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             {
                   if (!optionsBuilder.IsConfigured)
@@ -52,11 +53,11 @@ namespace BE.src.Domains.Database
                                           new MySqlServerVersion(new Version(8, 0, 27)));
                   }
             }
-
+        // connect appSetting lấy text cua connectionString de connect database
             protected override void OnModelCreating(ModelBuilder builder)
             {
                   base.OnModelCreating(builder);
-
+            // builder mấy field de tuong minh khi migrations
                   builder.Entity<AmenityService>(entity =>
                   {
                         entity.HasKey(a => a.Id);
@@ -76,9 +77,9 @@ namespace BE.src.Domains.Database
                         entity.Property(a => a.Price)
                         .IsRequired();
 
-                        entity.Property(a => a.Status)
-                        .IsRequired()
-                        .HasMaxLength(10)
+                      entity.Property(a => a.Status)
+                      .IsRequired()
+                      .HasMaxLength(10)
                         .HasConversion(
                             v => v.ToString(),
                             v => v.ToEnum<StatusServiceEnum>()
@@ -215,8 +216,6 @@ namespace BE.src.Domains.Database
                         entity.HasOne(dc => dc.BookingItem)
                               .WithOne(bi => bi.DeviceChecking)
                               .HasForeignKey<DeviceChecking>(dc => dc.BookingItemsId);
-                        entity.Property(dc => dc.StaffId)
-                              .IsRequired(false);
                         entity.HasOne(dc => dc.Staff)
                               .WithMany(dc => dc.DeviceCheckings)
                               .HasForeignKey(dc => dc.StaffId);
@@ -501,6 +500,9 @@ namespace BE.src.Domains.Database
 
                         entity.Property(s => s.IsNormal)
                         .IsRequired();
+
+                        //entity.Property(s => s.IsInUse)
+                        //.IsRequired();
 
                         entity.HasOne(s => s.AmenityService)
                         .WithMany(s => s.ServiceDetails)

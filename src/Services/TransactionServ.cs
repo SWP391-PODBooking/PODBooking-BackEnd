@@ -103,6 +103,25 @@ namespace BE.src.Services
             try
             {
                 List<MyTransaction> transactions = await _transactionRepo.GetTransactions(userId);
+                //    var transactionHistory = new List<TransactionDTO>();
+                //foreach (MyTransaction transaction in transactions) {
+                //    TransactionDTO transactionDTO = new TransactionDTO {
+                //        TransactionType = transaction.TransactionType,
+                //        Total = transaction.Total,
+                //        Id = transaction.Id,
+                //        CreateAt = transaction.CreateAt,
+                //        UpdateAt = transaction.UpdateAt,
+                //        PaymentRefund = transaction.PaymentRefund,
+                //        PaymentRefundId = transaction.PaymentRefundId,
+                //        MembershipUserId = transaction.MembershipUserId,
+                //        MembershipUser = transaction.MembershipUser,
+                //        DepositWithdraw = transaction.DepositWithdraw,
+                //        DepositWithdrawId = transaction.DepositWithdrawId,
+                //        UserId = transaction.UserId, 
+                //    };
+                //    var bookingItem = _bookingRepo.GetBookingItemsByBookingId(transaction.);
+                //    transactionHistory.Add(transactionDTO);
+                //}
                 return SuccessResp.Ok(transactions);
             }
             catch (System.Exception ex)

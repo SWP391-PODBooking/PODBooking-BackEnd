@@ -50,8 +50,6 @@ namespace BE.src.Repositories
         {
             return await _context.Users
                                     .Include(u => u.Image)
-                                    .Include(m => m.MembershipUsers.Where(mu => mu.Status == true))
-                                        .ThenInclude(mu => mu.Membership)
                                     .FirstOrDefaultAsync(u => u.Id == userId);
         }
 

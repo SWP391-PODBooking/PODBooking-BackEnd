@@ -1,4 +1,5 @@
 using BE.src.Domains.DTOs.AmenityService;
+using BE.src.Domains.Enum;
 using BE.src.Domains.Models;
 using BE.src.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -21,12 +22,6 @@ namespace BE.src.Controllers
         public async Task<IActionResult> GetAllAmenityService()
         {
             return await _amenityServiceServ.GetAllAmenityService();
-        }
-
-        [HttpGet("GetServiceWhenBooking")]
-        public async Task<IActionResult> GetServiceWhenBooking([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
-        {
-            return await _amenityServiceServ.GetServicesWhenBooking(startDate, endDate);
         }
 
         [HttpPost("CreateService")]
@@ -57,5 +52,12 @@ namespace BE.src.Controllers
         {
             return await _amenityServiceServ.CheckService(BookingItemsId, StaffId, data);
         }
+
+        [HttpPut("UpdateStatusService/{amenityServiceId}")]
+        public async Task<IActionResult> DeleteStatusService(Guid amenityServiceId, StatusServiceEnum statusServiceEnum)
+        {
+            return await _amenityServiceServ.DeleteStatusService(amenityServiceId, statusServiceEnum);
+        }
+
     }
 }

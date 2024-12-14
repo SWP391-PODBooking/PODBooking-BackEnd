@@ -104,10 +104,5 @@ namespace BE.src.Controllers
         {
             return await _roomServ.RoomSchedule(roomId, StartDate, EndDate);
         }
-        [HttpGet("GetAllRooms")]
-        public async Task<IActionResult> GetAllRooms()
-        {
-            return await _roomServ.GetAllRoomsAsync();
-        }
     }
 }

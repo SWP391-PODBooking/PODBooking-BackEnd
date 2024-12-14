@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,6 +18,7 @@ namespace BE.src.Services
         Task<IActionResult> GetAllMembership();
         Task<IActionResult> UpdateMembership(Guid id, MembershipUpdateDTO data);
         Task<IActionResult> DeleteMembership(Guid id);
+        //Task<IActionResult> GetUserMembership(Guid userId, Guid membershipId);
     }
 
     public class MembershipServ : IMembershipServ
@@ -35,8 +36,30 @@ namespace BE.src.Services
             {
                 return new NotFoundObjectResult(new { Message = "Membership not found" });
             }
+            var membershipMapping = new Dictionary<string, (string Name, decimal Discount)>
+            {
+                { "Bronze", ("Bronze", 0.05M) },
+                { "Silver", ("Silver", 0.10M) },
+                { "Gold", ("Gold", 0.15M) }
+            };
+            if (!membershipMapping.TryGetValue(membership.Name, out var membershipInfo))
+            {
+                return new NotFoundObjectResult(new { Message = "Invalid membership type" });
+            }
+            var timeSpan = DateTime.UtcNow - membership.CreateAt.Value;
+            var totalDays = timeSpan.TotalDays;
+            var timeLeft = membership.TimeLeft - timeSpan.Days;
 
-            return new OkObjectResult(membership);
+            // Trả về thông tin Membership
+            return new OkObjectResult(new
+            {
+                MembershipType = membershipInfo.Name,
+                Discount = membershipInfo.Discount,
+                TimeLeft = timeLeft > 0 ? timeLeft : 0,
+                Price = membership.Price,
+                Rank = membership.Rank
+
+            });
         }
         public async Task<IActionResult> CreateMembership(MembershipCreateDTO data)
         {
@@ -122,5 +145,17 @@ namespace BE.src.Services
                 return ErrorResp.BadRequest(ex.Message);
             }
         }
+
+        //public async Task<IActionResult> GetUserMembership(Guid userId, Guid membershipId)
+        //{
+        //    try
+        //    {
+        //        return SuccessResp.Ok(await _membershipRepo.GetUserMembership());
+        //    }
+        //    catch (System.Exception ex)
+        //    {
+        //        return ErrorResp.BadRequest(ex.Message);
+        //    }
+        //}
     }
 }
