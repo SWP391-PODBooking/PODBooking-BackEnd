@@ -77,9 +77,9 @@ namespace BE.src.Domains.Database
                         entity.Property(a => a.Price)
                         .IsRequired();
 
-                        entity.Property(a => a.Status)
-                        .IsRequired()
-                        .HasMaxLength(10)
+                      entity.Property(a => a.Status)
+                      .IsRequired()
+                      .HasMaxLength(10)
                         .HasConversion(
                             v => v.ToString(),
                             v => v.ToEnum<StatusServiceEnum>()
