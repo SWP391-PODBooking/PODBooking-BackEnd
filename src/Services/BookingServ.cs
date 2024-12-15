@@ -109,6 +109,27 @@ namespace BE.src.Services
                             BookingId = booking.Id
                         };
 
+                        if (amenityService.Type == AmenityServiceTypeEnum.Amenity)
+                        {
+                            List<ServiceDetail> serviceDetailAvailable = await _amenityRepo.GetListServiceAvailableByDateAndServiceId(data.DateBooking, data.DateBooking.Add(TimeSpan.FromHours(data.TimeHourBooking)), item.ItemsId);
+
+                            if (serviceDetailAvailable.Any())
+                            {
+                                Random random = new Random();
+                                int randomIndex = random.Next(serviceDetailAvailable.Count);
+                                bookingItem.ServiceDetail = serviceDetailAvailable[randomIndex];
+                                DeviceChecking deviceChecking = new()
+                                {
+                                    BookingItemsId = bookingItem.Id,
+                                    Status = StatusDeviceCheckingEnum.NonCheck
+                                };
+                            }
+                            else
+                            {
+                                bookingItem.ServiceDetail = null;
+                            }
+                        }
+
                         total += bookingItem.Total;
 
                         bookingItems.Add(bookingItem);
@@ -121,7 +142,7 @@ namespace BE.src.Services
                 }
                 if (userMembership != null)
                 {
-                    total *= userMembership.Discount;
+                    total -= room.Price * data.TimeHourBooking * userMembership.Discount;
                 }
 
                 booking.Total = total;

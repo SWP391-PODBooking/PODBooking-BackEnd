@@ -97,9 +97,9 @@ namespace BE.src.Controllers
         }
 
         [HttpPost("UpdateRoleUser/{userId:Guid}")]
-        public async Task<IActionResult> UpdateRoleUser(Guid userId, [FromForm] RoleEnum? roles, [FromForm] UserStatusEnum? status)
+        public async Task<IActionResult> UpdateRoleUser(Guid userId, [FromBody] UpdateRoleUserDTO data)
         {
-            return await _userServ.UpdateRoleUser(userId, roles, status);
+            return await _userServ.UpdateRoleUser(userId, data.roles, data.status);
         }
     }
 }

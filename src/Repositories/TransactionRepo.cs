@@ -56,16 +56,29 @@ namespace BE.src.Repositories
 
         public async Task<List<Transaction>> GetTransactions(Guid userId)
         {
-            return await _context.Transactions.Where(t => t.UserId == userId)
-                                            .Include(t => t.PaymentRefund)
-                                                .ThenInclude(t => t.RefundItems)
-                                                    .ThenInclude(ri => ri.BookingItem)
-                                                        .ThenInclude(bi => bi.AmenityService)
-                                            .Include(t => t.MembershipUser)
-                                            .Include(t => t.User)
-                                                .ThenInclude(u => u.Image)
-                                            .Include(t => t.DepositWithdraw)
-                                            .ToListAsync();
+            var query = _context.Transactions
+                                .Where(t => t.UserId == userId)
+                                .Include(t => t.MembershipUser)
+                                .Include(t => t.DepositWithdraw)
+                                .AsQueryable();
+
+            query = query.Include(t => t.PaymentRefund)
+                         .ThenInclude(t => t.Booking)
+                         .ThenInclude(t => t.BookingItems);
+
+            var transactions = await query.ToListAsync();
+
+            foreach (var transaction in transactions)
+            {
+                if (transaction.PaymentRefund != null && transaction.PaymentRefund.Type == Domains.Enum.PaymentRefundEnum.Refund)
+                {
+                    await _context.Entry(transaction.PaymentRefund)
+                                  .Collection(t => t.RefundItems)
+                                  .LoadAsync();
+                }
+            }
+
+            return transactions;
         }
 
         public async Task<List<Transaction>> TransactionInYear(int year)

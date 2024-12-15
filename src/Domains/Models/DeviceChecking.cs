@@ -12,7 +12,7 @@ namespace BE.src.Domains.Models
         public Guid BookingItemsId { get; set; }
         public BookingItem BookingItem { get; set; } = null!;
 
-        public Guid StaffId { get; set; }
-        public User Staff { get; set; } = null!;
+        public Guid? StaffId { get; set; }
+        public User? Staff { get; set; } = null!;
     }
 }

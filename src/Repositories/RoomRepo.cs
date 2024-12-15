@@ -38,6 +38,7 @@ namespace BE.src.Repositories
         Task<Image?> GetImageBySingleRoomId(Guid roomId);
         Task<List<Image>> GetImagesByRoomIdTpUpdate(Guid roomId);
         Task<bool> DeleteImageRoom(Guid imageId);
+        Task<List<Room>> GetAllRooms();
     }
     public class RoomRepo : IRoomRepo
 
@@ -300,11 +301,18 @@ namespace BE.src.Repositories
         public async Task<bool> DeleteImageRoom(Guid imageId)
         {
             var image = await _context.Images.FirstOrDefaultAsync(i => i.Id.Equals(imageId));
-            if(image == null) { return false; }
+            if (image == null) { return false; }
 
             _context.Images.Remove(image);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<List<Room>> GetAllRooms()
+        {
+            return await _context.Rooms
+                                .Include(r => r.Images)
+                                .ToListAsync();
         }
     }
 }

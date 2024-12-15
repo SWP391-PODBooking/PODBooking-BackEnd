@@ -37,7 +37,6 @@ namespace BE.src.Repositories
         Task<int> TotalBooking();
         Task<BookingItem?> GetBookingItemById(Guid BookingItemId);
         Task<List<Booking>> ScheduleRoom(Guid roomId, DateTime StartDate, DateTime EndDate);
-        Task<BookingItem?> GetBookingItemsByBookingId(Guid id);
     }
     public class BookingRepo : IBookingRepo
     {
@@ -65,14 +64,6 @@ namespace BE.src.Repositories
                                     .Include(b => b.PaymentRefunds.Where(p => p.Type == PaymentRefundEnum.Payment))
                                     .Include(b => b.BookingItems)
                                     .FirstOrDefaultAsync(b => b.Id == id);
-        }
-
-        public async Task<BookingItem?> GetBookingItemsByBookingId(Guid id)
-        {
-            return await _context.BookingItems
-                                    .Include(b => b.AmenityService)
-                                    .Include(b => b.DeviceChecking)
-                                    .FirstOrDefaultAsync(b => b.BookingId == id);
         }
 
         public async Task<bool> UpdateBooking(Booking booking)
@@ -442,30 +433,15 @@ namespace BE.src.Repositories
 
         public async Task<List<Booking>> GetListBookingByAmenityService(Guid amenityServiceId)
         {
-            return await _context.Bookings.Include(b => b.BookingItems).ThenInclude(b => b.AmenityService)
-                                            .Where(bi => bi.Id == amenityServiceId)
-                                                //.Include(b => b.PaymentRefunds)
-                                                    //.Where(p => p.Type == PaymentRefundEnum.Payment))
-                                            //.Where(bi => bi.AmenityServiceId == amenityServiceId))
-                                            //.Include(b => b.PaymentRefunds
-                                            //                    .Where(p => p.Type == PaymentRefundEnum.Payment))
-
+            return await _context.Bookings.Include(b => b.BookingItems
+                                            .Where(bi => bi.AmenityServiceId == amenityServiceId))
+                                            .Include(b => b.PaymentRefunds
+                                                                .Where(p => p.Type == PaymentRefundEnum.Payment))
+                                            .Where(b => b.BookingItems.Any(bi => bi.AmenityServiceId == amenityServiceId)
+                                            && (b.Status == StatusBookingEnum.Wait || b.Status == StatusBookingEnum.Accepted))
                                             .ToListAsync();
         }
-        //.Where(b => b.BookingItems.Any(bi => bi.AmenityServiceId == amenityServiceId)
-        //                                    && (b.Status == StatusBookingEnum.Wait || b.Status == StatusBookingEnum.Accepted))
 
-
-        //public async Task<List<Booking>> GetListBookingByAmenityService(Guid amenityServiceId)
-        //{
-        //    return await _context.Bookings.Include(b => b.BookingItems
-        //                                    .Where(bi => bi.AmenityServiceId == amenityServiceId))
-        //                                    .Include(b => b.PaymentRefunds
-        //                                                        .Where(p => p.Type == PaymentRefundEnum.Payment))
-        //                                    .Where(b => b.BookingItems.Any(bi => bi.AmenityServiceId == amenityServiceId)
-        //                                    && (b.Status == StatusBookingEnum.Wait || b.Status == StatusBookingEnum.Accepted))
-        //                                    .ToListAsync();
-        //}
         public async Task<bool> UpdateBookingItem(BookingItem bookingItem)
         {
             _context.BookingItems.Update(bookingItem);

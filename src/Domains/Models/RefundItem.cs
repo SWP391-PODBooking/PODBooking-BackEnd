@@ -6,6 +6,7 @@ namespace BE.src.Domains.Models
     {
         public int AmountItems { get; set; }
         public float Total { get; set; }
+
         public Guid PaymentRefundId { get; set; }
         public PaymentRefund PaymentRefund { get; set; } = null!;
         public Guid BookingItemId { get; set; }
