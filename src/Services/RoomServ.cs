@@ -31,6 +31,7 @@ namespace BE.src.Services
         Task<IActionResult> UpdateRoom(Guid id, UpdateRoomDTO data);
         Task<IActionResult> RoomSchedule(Guid roomId, DateTime StartDate, DateTime EndDate);
         Task<IActionResult> GetAllRoomsAsync();
+        Task<IActionResult> ChangeRoomStatus(Guid roomId, StatusRoomEnum newStatus);
     }
     public class RoomServ : IRoomServ
     {
@@ -505,6 +506,87 @@ namespace BE.src.Services
                 return SuccessResp.Ok(rooms);
             }
             catch (System.Exception ex)
+            {
+                return ErrorResp.BadRequest(ex.Message);
+            }
+        }
+
+        public async Task<IActionResult> ChangeRoomStatus(Guid roomId, StatusRoomEnum newStatus)
+        {
+            try
+            {
+                var room = await _roomRepo.GetRoomById(roomId);
+                if (room == null)
+                {
+                    return ErrorResp.NotFound("Không tìm thấy phòng");
+                }
+
+                // Nếu phòng đang được đặt, không cho phép chuyển sang trạng thái Disable
+                if (newStatus == StatusRoomEnum.Disable)
+                {
+                    List<Booking> bookingsWaitAccepted = await _bookingRepo.GetBookingsWaitAccepted(roomId);
+                    if (bookingsWaitAccepted.Any())
+                    {
+                        foreach (var booking in bookingsWaitAccepted)
+                        {
+                            //Hoàn tiền cho các đơn đặt phòng chưa thanh toán COD
+                            if (booking.PaymentRefunds.FirstOrDefault()?.PaymentType != PaymentTypeEnum.COD)
+                            {
+                                PaymentRefund newPaymentRefund = new()
+                                {
+                                    Type = PaymentRefundEnum.Refund,
+                                    Total = booking.Total,
+                                    PointBonus = 0,
+                                    Status = true,
+                                    BookingId = booking.Id
+                                };
+
+                                var isCreateRefund = await _transactionRepo.CreatePaymentRefund(newPaymentRefund);
+
+                                Transaction transaction = new()
+                                {
+                                    TransactionType = TypeTransactionEnum.Refund,
+                                    Total = booking.Total,
+                                    PaymentRefundId = newPaymentRefund.Id,
+                                    UserId = booking.UserId
+                                };
+                                var isCreateTransaction = await _transactionRepo.CreateTransaction(transaction);
+
+                                var user = await _userRepo.GetUserById(booking.UserId);
+                                if (user != null)
+                                {
+                                    user.Wallet += booking.Total;
+                                    await _userRepo.UpdateUser(user);
+                                }
+                            }
+
+                            //Gửi thông báo
+                            Notification notification = new()
+                            {
+                                Title = "Phòng tạm thời không khả dụng",
+                                Description = $"Đơn đặt phòng ngày {booking.DateBooking} đã bị hủy do phòng đang bảo trì. Số tiền {booking.Total} đã được hoàn vào ví của bạn",
+                                UserId = booking.UserId
+                            };
+                            await _userRepo.CreateNotification(notification);
+
+                            booking.Status = StatusBookingEnum.Canceled;
+                            await _bookingRepo.UpdateBooking(booking);
+                        }
+                    }
+                }
+
+                room.Status = newStatus;
+                room.UpdateAt = DateTime.Now;
+
+                var isUpdated = await _roomRepo.UpdateRoom(room);
+                if (!isUpdated)
+                {
+                    return ErrorResp.BadRequest("Lỗi khi cập nhật trạng thái phòng");
+                }
+
+                return SuccessResp.Ok("Cập nhật trạng thái phòng thành công");
+            }
+            catch (Exception ex)
             {
                 return ErrorResp.BadRequest(ex.Message);
             }

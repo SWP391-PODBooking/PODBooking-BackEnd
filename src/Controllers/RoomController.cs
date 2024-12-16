@@ -109,5 +109,11 @@ namespace BE.src.Controllers
         {
             return await _roomServ.GetAllRoomsAsync();
         }
+
+        [HttpPut("status/{roomId}")]
+        public async Task<IActionResult> ChangeRoomStatus(Guid roomId, [FromQuery] StatusRoomEnum newStatus)
+        {
+            return await _roomServ.ChangeRoomStatus(roomId, newStatus);
+        }
     }
 }
