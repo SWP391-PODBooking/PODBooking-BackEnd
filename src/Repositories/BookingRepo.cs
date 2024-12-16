@@ -400,16 +400,19 @@ namespace BE.src.Repositories
 
             return bookingRequests.OrderByDescending(b => b.DateBooking.Add(b.TimeBooking)).ToList();
         }
-        public async Task<List<Booking>> ListBookingUserUpComing(Guid userId)
-        {
-            return await _context.Bookings.Where(b => b.UserId == userId
-                                                && b.Status == StatusBookingEnum.Accepted)
-                                                .Include(b => b.Room)
-                                                    .ThenInclude(r => r.Images)
-                                                .ToListAsync();
-
-        }
-
+       public async Task<List<Booking>> ListBookingUserUpComing(Guid userId)
+{
+    return await _context.Bookings
+        .Where(b => b.UserId == userId 
+            && b.Status == StatusBookingEnum.Accepted 
+            && b.DateBooking >= DateTime.Now)
+        .Include(b => b.Room)
+            .ThenInclude(r => r.Images)
+        .Include(b => b.BookingItems)
+            .ThenInclude(bi => bi.AmenityService)
+        .OrderBy(b => b.DateBooking)
+        .ToListAsync();
+}
         public async Task<bool> CancleAllBookingByUser(Guid userId)
         {
             List<Booking> bookings = await _context.Bookings.Where(b => b.UserId == userId && (b.Status == StatusBookingEnum.Wait || b.Status == StatusBookingEnum.Accepted)).ToListAsync();

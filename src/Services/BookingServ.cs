@@ -374,17 +374,58 @@ namespace BE.src.Services
         }
 
         public async Task<IActionResult> ListBookingUserUpcoming(Guid UserId)
+{
+    try
+    {
+        var listBooking = await _bookingRepo.ListBookingUserUpComing(UserId);
+        
+        // Chuyển đổi sang DTO để kiểm soát dữ liệu trả về
+        var result = listBooking.Select(b => new
         {
-            try
+            b.Id,
+            b.TimeBooking,
+            b.DateBooking,
+            b.Total,
+            b.Status,
+            b.IsPay,
+            b.IsCheckIn,
+            b.UserId,
+            Room = new
             {
-                var listBooking = await _bookingRepo.ListBookingUserUpComing(UserId);
-                return SuccessResp.Ok(listBooking);
-            }
-            catch (System.Exception ex)
-            {
-                return ErrorResp.BadRequest(ex.Message);
-            }
-        }
+                b.Room.Id,
+                b.Room.Name,
+                b.Room.Price,
+                b.Room.TypeRoom,
+                b.Room.Description,
+                Images = b.Room.Images.Select(i => new
+                {
+                    i.Id,
+                    i.Url
+                }).ToList()
+            },
+            BookingItems = b.BookingItems.Where(bi => bi.Status != StatusBookingItemEnum.Cancle)
+                .Select(bi => new
+                {
+                    bi.Id,
+                    bi.AmountItems,
+                    bi.Total,
+                    bi.Status,
+                    AmenityService = new
+                    {
+                        bi.AmenityService.Id,
+                        bi.AmenityService.Name,
+                        bi.AmenityService.Price
+                    }
+                }).ToList()
+        }).ToList();
+
+        return SuccessResp.Ok(result);
+    }
+    catch (Exception ex)
+    {
+        return ErrorResp.BadRequest(ex.Message);
+    }
+}
 
         public async Task<IActionResult> TotalBooking()
         {
@@ -403,69 +444,126 @@ namespace BE.src.Services
         {
             try
             {
+                // 1. Kiểm tra booking
                 var booking = await _bookingRepo.GetBookingById(bookingId);
                 if (booking == null)
                 {
-                    return ErrorResp.BadRequest("cant find booking");
+                    return ErrorResp.NotFound("Không tìm thấy đơn đặt phòng");
                 }
+
+                if (booking.Status != StatusBookingEnum.Accepted)
+                {
+                    return ErrorResp.BadRequest("Chỉ có thể hủy dịch vụ của đơn đặt phòng đã được chấp nhận");
+                }
+
+                if (booking.DateBooking < DateTime.Now)
+                {
+                    return ErrorResp.BadRequest("Không thể hủy dịch vụ của đơn đặt phòng đã qua");
+                }
+
+                // 2. Tạo payment refund mới
                 PaymentRefund refund = new()
                 {
                     Type = PaymentRefundEnum.Refund,
                     Total = 0,
                     PointBonus = 0,
                     Status = true,
-                    IsRefundReturnRoom = false
+                    IsRefundReturnRoom = false,
+                    BookingId = bookingId
                 };
-                var isCreateRefund = await _transactionRepo.CreatePaymentRefund(refund);
+
+                // 3. Xử lý từng dịch vụ cần hủy
+                float totalRefund = 0;
+                List<RefundItem> refundItems = new List<RefundItem>();
+
                 foreach (var cancleServiceDTO in data)
                 {
-                    //Check and change status CancleSerivce
                     var bookingItem = await _bookingRepo.GetBookingItemById(cancleServiceDTO.BookingItemId);
                     if (bookingItem == null)
                     {
-                        return ErrorResp.BadRequest("cant find bookingItem");
+                        return ErrorResp.NotFound($"Không tìm thấy dịch vụ với ID: {cancleServiceDTO.BookingItemId}");
                     }
-                    if (bookingItem.AmountItems == cancleServiceDTO.Amount)
+
+                    if (bookingItem.BookingId != bookingId)
+                    {
+                        return ErrorResp.BadRequest("Dịch vụ không thuộc đơn đặt phòng này");
+                    }
+
+                    if (cancleServiceDTO.Amount > bookingItem.AmountItems)
+                    {
+                        return ErrorResp.BadRequest($"Số lượng hủy ({cancleServiceDTO.Amount}) vượt quá số lượng đã đặt ({bookingItem.AmountItems})");
+                    }
+
+                    // Tính toán số tiền hoàn trả
+                    float refundAmount = bookingItem.AmenityService.Price * cancleServiceDTO.Amount;
+                    totalRefund += refundAmount;
+
+                    // Cập nhật bookingItem
+                    if (cancleServiceDTO.Amount == bookingItem.AmountItems)
                     {
                         bookingItem.Status = StatusBookingItemEnum.Cancle;
                     }
                     bookingItem.AmountItems -= cancleServiceDTO.Amount;
+                    bookingItem.Total -= refundAmount;
+
+                    await _bookingRepo.UpdateBookingItem(bookingItem);
+
+                    // Tạo refund item
                     RefundItem newRefundItem = new()
                     {
                         AmountItems = cancleServiceDTO.Amount,
-                        Total = bookingItem.AmenityService.Price * cancleServiceDTO.Amount,
+                        Total = refundAmount,
                         PaymentRefundId = refund.Id,
                         BookingItemId = cancleServiceDTO.BookingItemId
                     };
-                    var IsCreatedTransaction = await _transactionRepo.CreateRefundItem(newRefundItem);
-                    bookingItem.Total -= newRefundItem.Total;
-                    var isUpdatedBookingItem = await _bookingRepo.UpdateBookingItem(bookingItem);
-                    //Decrease in Booking
-                    booking.Total -= newRefundItem.Total;
-                    refund.Total += newRefundItem.Total;
+                    refundItems.Add(newRefundItem);
                 }
-                var isUpdatedBooking = await _bookingRepo.UpdateBooking(booking);
-                var isUpdateRefund = await _transactionRepo.UpdatePaymentRefund(refund);
+
+                // 4. Cập nhật tổng tiền và lưu refund
+                refund.Total = totalRefund;
+                var isCreateRefund = await _transactionRepo.CreatePaymentRefund(refund);
+                if (!isCreateRefund)
+                {
+                    return ErrorResp.BadRequest("Không thể tạo phiếu hoàn tiền");
+                }
+
+                // 5. Lưu các refund items
+                foreach (var refundItem in refundItems)
+                {
+                    await _transactionRepo.CreateRefundItem(refundItem);
+                }
+
+                // 6. Cập nhật booking
+                booking.Total -= totalRefund;
+                await _bookingRepo.UpdateBooking(booking);
+
+                // 7. Hoàn tiền vào ví người dùng
                 var user = await _userRepo.GetUserById(booking.UserId);
                 if (user == null)
                 {
-                    return ErrorResp.BadRequest("cant find user");
+                    return ErrorResp.NotFound("Không tìm thấy thông tin người dùng");
                 }
-                user.Wallet += refund.Total * 0.85f;
-                var isUpdateUser = await _userRepo.UpdateUser(user);
+
+                float refundToWallet = totalRefund * 0.85f;
+                user.Wallet += refundToWallet;
+                await _userRepo.UpdateUser(user);
+
+                // 8. Tạo thông báo
                 MyNotification notification = new()
                 {
-                    Title = "Refund for your Cancle Service",
-                    Description = $"Your wallet have been increase {refund.Total * 0.85f} in your waller",
+                    Title = "Hoàn tiền hủy dịch vụ",
+                    Description = $"Bạn đã được hoàn {refundToWallet:N0} VNĐ vào ví sau khi hủy dịch vụ",
                     UserId = user.Id
                 };
-                var isCreatedNotification = await _userRepo.CreateNotification(notification);
-                //Notification
-                return SuccessResp.Ok("Cancle service success");
+                await _userRepo.CreateNotification(notification);
+
+                return SuccessResp.Ok("Hủy dịch vụ thành công");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                return ErrorResp.BadRequest(ex.Message);
+                // Log the inner exception for debugging
+                Console.WriteLine($"Inner Exception: {ex.InnerException?.Message}");
+                return ErrorResp.BadRequest($"Lỗi: {ex.Message}");
             }
         }
 
