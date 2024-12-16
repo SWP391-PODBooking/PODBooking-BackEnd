@@ -199,63 +199,82 @@ namespace BE.src.Services
         {
             try
             {
-                //identify booking have this service
-                List<Booking> GetListBookingByAmenityService = await _bookingRepo.GetListBookingByAmenityService(amenityServiceId);
-                foreach (var booking in GetListBookingByAmenityService)
-                {
-                    var bookingItem = booking.BookingItems.FirstOrDefault();
-                    if (booking.PaymentRefunds.FirstOrDefault()?.PaymentType != PaymentTypeEnum.COD)
-                    {
-                        // refund
-                        PaymentRefund? paymentRefund = await _transactionRepo.FindPaymentRefundByBooking(booking.Id);
-                        if (paymentRefund == null)
-                        {
-                            PaymentRefund newPaymentRefund = new()
-                            {
-                                Type = PaymentRefundEnum.Refund,
-                                Total = bookingItem.Total,
-                                PointBonus = 0,
-                                Status = true,
-                                IsRefundReturnRoom = false
-                            };
-                            var isCreatePayment = await _transactionRepo.CreatePaymentRefund(newPaymentRefund);
-                            paymentRefund = newPaymentRefund;
-                        }
-                        else
-                        {
-                            paymentRefund.Total += bookingItem.Total;
-                            var isUpdatedPayment = await _transactionRepo.UpdatePaymentRefund(paymentRefund);
-                        }
-                        RefundItem newRefundItem = new()
-                        {
-                            AmountItems = bookingItem.AmountItems,
-                            Total = bookingItem.Total,
-                            PaymentRefundId = paymentRefund.Id,
-                            BookingItemId = bookingItem.Id
-                        };
-                        var isCreatedRefundItem = await _transactionRepo.CreateRefundItem(newRefundItem);
-                        //plus amount for wallet
-                        var user = await _userRepo.GetUserById(booking.UserId);
-                        user.Wallet += bookingItem.Total;
-                        var isUpdatedUser = await _userRepo.UpdateUser(user);
-                    }
-                    // change status bookingservice
-                    bookingItem.Status = StatusBookingItemEnum.Cancle;
-                    var isUpdateBookingItem = await _bookingRepo.UpdateBookingItem(bookingItem);
-                    // send notification
-                    Notification notification = new()
-                    {
-                        Title = "Refunds due as this service is no longer available",
-                        Description = $"Booking application on {booking.DateBooking}, has been canceled and an amount of {bookingItem.Total} added to your wallet",
-                        UserId = booking.UserId
-                    };
-                    var isCreateNotification = await _userRepo.CreateNotification(notification);
-                }
-                //change service status
                 var serviceAmenity = await _amenityServiceRepo.GetAmenityServiceById(amenityServiceId);
-                serviceAmenity.Status = StatusServiceEnum.Disable;
+                if (serviceAmenity == null)
+                {
+                    return ErrorResp.BadRequest("Service not found");
+                }
+
+                // Nếu service đang Available thì chuyển sang Disable
+                if (serviceAmenity.Status == StatusServiceEnum.Available)
+                {
+                    //identify booking have this service
+                    List<Booking> GetListBookingByAmenityService = await _bookingRepo.GetListBookingByAmenityService(amenityServiceId);
+                    foreach (var booking in GetListBookingByAmenityService)
+                    {
+                        var bookingItem = booking.BookingItems.FirstOrDefault();
+                        if (booking.PaymentRefunds.FirstOrDefault()?.PaymentType != PaymentTypeEnum.COD)
+                        {
+                            // refund
+                            PaymentRefund? paymentRefund = await _transactionRepo.FindPaymentRefundByBooking(booking.Id);
+                            if (paymentRefund == null)
+                            {
+                                PaymentRefund newPaymentRefund = new()
+                                {
+                                    Type = PaymentRefundEnum.Refund,
+                                    Total = bookingItem.Total,
+                                    PointBonus = 0,
+                                    Status = true,
+                                    IsRefundReturnRoom = false
+                                };
+                                var isCreatePayment = await _transactionRepo.CreatePaymentRefund(newPaymentRefund);
+                                paymentRefund = newPaymentRefund;
+                            }
+                            else
+                            {
+                                paymentRefund.Total += bookingItem.Total;
+                                var isUpdatedPayment = await _transactionRepo.UpdatePaymentRefund(paymentRefund);
+                            }
+                            RefundItem newRefundItem = new()
+                            {
+                                AmountItems = bookingItem.AmountItems,
+                                Total = bookingItem.Total,
+                                PaymentRefundId = paymentRefund.Id,
+                                BookingItemId = bookingItem.Id
+                            };
+                            var isCreatedRefundItem = await _transactionRepo.CreateRefundItem(newRefundItem);
+                            //plus amount for wallet
+                            var user = await _userRepo.GetUserById(booking.UserId);
+                            user.Wallet += bookingItem.Total;
+                            var isUpdatedUser = await _userRepo.UpdateUser(user);
+                        }
+                        // change status bookingservice
+                        bookingItem.Status = StatusBookingItemEnum.Cancle;
+                        var isUpdateBookingItem = await _bookingRepo.UpdateBookingItem(bookingItem);
+                        // send notification
+                        Notification notification = new()
+                        {
+                            Title = "Refunds due as this service is no longer available",
+                            Description = $"Booking application on {booking.DateBooking}, has been canceled and an amount of {bookingItem.Total} added to your wallet",
+                            UserId = booking.UserId
+                        };
+                        var isCreateNotification = await _userRepo.CreateNotification(notification);
+                    }
+                    serviceAmenity.Status = StatusServiceEnum.Disable;
+                }
+                // Nếu service đang Disable thì chuyển sang Available
+                else if (serviceAmenity.Status == StatusServiceEnum.Disable)
+                {
+                    serviceAmenity.Status = StatusServiceEnum.Available;
+                }
+
                 var isUpdatedService = await _amenityServiceRepo.UpdateService(serviceAmenity);
-                return SuccessResp.Ok("Delete Service Success");
+                if (!isUpdatedService)
+                {
+                    return ErrorResp.BadRequest("Failed to update service status");
+                }
+
+                return SuccessResp.Ok($"Service status changed to {serviceAmenity.Status}");
             }
             catch (System.Exception ex)
             {
