@@ -28,7 +28,23 @@ namespace BE.src.Repositories
 
         public async Task<Promotion> GetPromotionByCode(string code)
         {
-            return await _context.Promotions.FirstOrDefaultAsync(p => p.Code == code);
+            try
+            {
+                Console.WriteLine($"Searching for promotion with code: {code}");
+                var promotion = await _context.Promotions
+                    .FirstOrDefaultAsync(p => p.Code == code);
+                
+                Console.WriteLine(promotion == null 
+                    ? "Promotion not found" 
+                    : $"Found promotion: {Newtonsoft.Json.JsonConvert.SerializeObject(promotion)}");
+                    
+                return promotion;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting promotion by code: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<bool> CreatePromotion(Promotion promotion)

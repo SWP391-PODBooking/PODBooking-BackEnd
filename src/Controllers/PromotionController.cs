@@ -48,7 +48,26 @@ namespace BE.src.Controllers
         [HttpGet("validate")]
         public async Task<IActionResult> ValidatePromotion([FromQuery] string code, [FromQuery] decimal orderAmount)
         {
-            return await _promotionServ.ValidatePromotion(code, orderAmount);
+            try 
+            {
+                var result = await _promotionServ.ValidatePromotion(code, orderAmount);
+                var resultObj = result as ObjectResult;
+                
+                // Log để debug
+                Console.WriteLine($"Validating promotion: Code={code}, Amount={orderAmount}");
+                Console.WriteLine($"Validation result: {Newtonsoft.Json.JsonConvert.SerializeObject(resultObj?.Value)}");
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error validating promotion: {ex.Message}");
+                return BadRequest(new { 
+                    Status = 400,
+                    Message = "Error validating promotion",
+                    Error = ex.Message
+                });
+            }
         }
     }
 }

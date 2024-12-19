@@ -192,20 +192,73 @@ namespace BE.src.Services
         {
             try
             {
-                var isValid = await _promotionRepo.ValidatePromotion(code, orderAmount);
-                if (!isValid)
+                var promotion = await _promotionRepo.GetPromotionByCode(code);
+                
+                if (promotion == null)
+                {
                     return new BadRequestObjectResult(new
                     {
                         Status = 400,
-                        Message = "Invalid promotion code"
+                        Message = "Promotion code not found"
                     });
+                }
 
-                var promotion = await _promotionRepo.GetPromotionByCode(code);
+                if (!promotion.IsActive)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Status = 400,
+                        Message = "Promotion code is inactive"
+                    });
+                }
+
+                if (DateTime.Now < promotion.StartDate)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Status = 400,
+                        Message = "Promotion has not started yet"
+                    });
+                }
+
+                if (DateTime.Now > promotion.EndDate)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Status = 400,
+                        Message = "Promotion has expired"
+                    });
+                }
+
+                if (promotion.CurrentUsage >= promotion.MaxUsage)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Status = 400,
+                        Message = "Promotion usage limit reached"
+                    });
+                }
+
+                if (orderAmount < promotion.MinimumSpend)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Status = 400,
+                        Message = $"Minimum spend required: {promotion.MinimumSpend}"
+                    });
+                }
+
                 return new OkObjectResult(new
                 {
                     Status = 200,
                     Message = "Promotion code is valid",
-                    Data = promotion
+                    Data = new
+                    {
+                        discountAmount = promotion.DiscountAmount,
+                        minimumSpend = promotion.MinimumSpend,
+                        code = promotion.Code,
+                        description = promotion.Description
+                    }
                 });
             }
             catch (Exception ex)
@@ -213,7 +266,8 @@ namespace BE.src.Services
                 return new BadRequestObjectResult(new
                 {
                     Status = 400,
-                    Message = ex.Message
+                    Message = "Error validating promotion",
+                    Error = ex.Message
                 });
             }
         }
