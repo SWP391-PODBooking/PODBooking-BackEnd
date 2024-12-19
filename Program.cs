@@ -61,6 +61,7 @@ builder.Services.AddScoped<IAmenityServiceServ, AmenityServiceServ>();
 builder.Services.AddScoped<ITransactionServ, TrasactionServ>();
 builder.Services.AddScoped<IAnalysticServ, AnalysticServ>();
 builder.Services.AddScoped<IReportServ, ReportServ>();
+builder.Services.AddScoped<IPromotionServ, PromotionServ>();
 
 builder.Services.AddScoped<IUserRepo, UserRepo>(); builder.Services.AddScoped<IRoomRepo, RoomRepo>();
 builder.Services.AddScoped<IMembershipRepo, MembershipRepo>();
@@ -72,6 +73,7 @@ builder.Services.AddScoped<IAmenityServiceRepo, AmenityServiceRepo>();
 builder.Services.AddScoped<ITransactionRepo, TrasactionRepo>();
 builder.Services.AddScoped<IAnalysticRepo, AnalysticRepo>();
 builder.Services.AddScoped<IReportRepo, ReportRepo>();
+builder.Services.AddScoped<IPromotionRepo, PromotionRepo>();
 
 builder.Services.AddDbContext<PodDbContext>();
 

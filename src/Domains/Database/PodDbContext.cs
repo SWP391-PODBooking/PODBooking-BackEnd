@@ -34,6 +34,7 @@ namespace BE.src.Domains.Database
             public DbSet<ServiceDetail> ServiceDetails { get; set; } = null!;
             public DbSet<Transaction> Transactions { get; set; } = null!;
             public DbSet<Utility> Utilities { get; set; } = null!;
+            public DbSet<Promotion> Promotions { get; set; }
 
             private readonly IConfiguration _configuration;
 
@@ -619,6 +620,46 @@ namespace BE.src.Domains.Database
                   builder.Entity<BaseEntity>()
                       .Property(b => b.UpdateAt)
                       .IsRequired(false);
+
+                  builder.Entity<Promotion>(entity =>
+                  {
+                        entity.HasKey(p => p.Id);
+
+                        entity.Property(p => p.Code)
+                              .IsRequired()
+                              .HasMaxLength(50);
+
+                        entity.Property(p => p.Description)
+                              .HasMaxLength(500);
+
+                        entity.Property(p => p.DiscountAmount)
+                              .IsRequired()
+                              .HasColumnType("decimal(18,2)");
+
+                        entity.Property(p => p.MinimumSpend)
+                              .IsRequired()
+                              .HasColumnType("decimal(18,2)");
+
+                        entity.Property(p => p.StartDate)
+                              .IsRequired();
+
+                        entity.Property(p => p.EndDate)
+                              .IsRequired();
+
+                        entity.Property(p => p.MaxUsage)
+                              .IsRequired();
+
+                        entity.Property(p => p.CurrentUsage)
+                              .IsRequired();
+
+                        entity.Property(p => p.IsActive)
+                              .IsRequired();
+
+                        entity.Property(p => p.CreatedAt)
+                              .IsRequired();
+
+                        entity.Property(p => p.UpdatedAt);
+                  });
             }
       }
 }
